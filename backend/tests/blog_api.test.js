@@ -23,18 +23,16 @@ const initialBlogs = [
 
 beforeEach(async () => {
     await Blog.deleteMany({})
-
-    let blogObject = new Blog(initialBlogs[0])
-    await blogObject.save()
-    blogObject = new Blog(initialBlogs[1])
-    await blogObject.save()
+    await Blog.insertMany(initialBlogs)
 }, 100000)
 
-test('all blogs are returned', async () => {
+describe('viewing a specific blog', () => {
+    test('all blogs are returned', async () => {
 
-    const response = await api.get('/api/blogs')
-
-    expect(response.body).toHaveLength(initialBlogs.length)
+        const response = await api.get('/api/blogs')
+    
+        expect(response.body).toHaveLength(initialBlogs.length)
+    })
 })
 
 describe('creating a blog', () => {
@@ -65,7 +63,7 @@ describe('creating a blog', () => {
         expect(contents).toContain('Blog 3 is getting posted')
     })
 
-    test('a blog with no likes', async () => {
+    test('a blog with no likes, gets 0 likes', async () => {
         const newBlog = {
             title: "Chicken over Rice",
             author: "Macklemoor",
@@ -84,7 +82,35 @@ describe('creating a blog', () => {
 
         expect(blogtoTest.likes).toBe(0)
     })
+
+    test('blog with no title or url', async () => {
+        const newBlog = {
+            author: "John Doe",
+            url: "www.johndoe.com",
+            likes: 10,
+        }
+
+        await api
+            .post('/api/blogs')
+            .send(newBlog)
+            .expect(400)
+    }, 100000)
 })
+
+describe('deleting a blog', () => {
+    test('succeeds with status code 204 if id is valid', async () => {
+
+        const blogsResponse = await api.get('/api/blogs')
+        const blogsToDelete = blogsResponse.body[blogsResponse.body.length - 1] //last blog
+
+        await api.delete(`/api/blogs/${blogsToDelete.id}`)
+
+        const newBlogsResponse = await api.get('/api/blogs')
+        const titles = newBlogsResponse.body.map(r => r.title)
+
+        expect(titles).not.toContain(blogsToDelete.title)
+    })
+}, 100000)
 
 afterAll(() => {
     mongoose.connection.close()
